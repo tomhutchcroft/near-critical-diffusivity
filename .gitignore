@@ -1,0 +1,4 @@
+.lake/
+.tools/
+*.log
+.DS_Store

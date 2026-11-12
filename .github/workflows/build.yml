@@ -1,0 +1,31 @@
+name: build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lake-manifest.json', 'lean-toolchain') }}-${{ github.run_id }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lake-manifest.json', 'lean-toolchain') }}-
+      - name: Mathlib cache
+        run: lake exe cache get
+      - name: Build
+        run: lake build
+      - name: Axiom audit
+        run: |
+          lake env lean MainAxioms.lean | tee axioms.txt
+          ! grep -E "sorryAx" axioms.txt
+          test "$(grep -c 'depends on axioms' axioms.txt)" -eq 3
